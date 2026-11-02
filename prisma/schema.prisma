@@ -32,3 +32,40 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+/// One row per (shop, GoHub plan). Holds the reseller's sale price and,
+/// once pushed, the Shopify product/variant ids for order->plan matching.
+model ResellerPlan {
+  id                      String    @id @default(cuid())
+  shop                    String
+  gohubPlanId             String
+  salePrice               String // money as string, e.g. "9.00" (Shopify convention)
+  active                  Boolean   @default(true)
+  shopifyProductGid       String? // gid://shopify/Product/...
+  shopifyVariantGid       String? // gid://shopify/ProductVariant/...
+  shopifyVariantNumericId String? // "123..." - matches orders/paid payload variant_id
+  pushedAt                DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@unique([shop, gohubPlanId])
+  @@index([shop, shopifyVariantNumericId])
+}
+
+/// One row per provisioned eSIM. idempotencyKey makes webhook retries safe.
+model ProvisionedEsim {
+  id                String    @id @default(cuid())
+  shop              String
+  idempotencyKey    String    @unique // `${orderId}:${lineItemId}:${index}`
+  shopifyOrderId    String
+  shopifyOrderName  String
+  shopifyLineItemId String
+  gohubPlanId       String
+  planName          String
+  iccid             String
+  lpa               String
+  status            String // "ASSIGNED"
+  customerEmail     String
+  emailSentAt       DateTime?
+  createdAt         DateTime  @default(now())
+}
