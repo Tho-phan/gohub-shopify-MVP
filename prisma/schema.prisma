@@ -52,20 +52,43 @@ model ResellerPlan {
   @@index([shop, shopifyVariantNumericId])
 }
 
-/// One row per provisioned eSIM. idempotencyKey makes webhook retries safe.
+/// One row per Shopify paid order that contains eSIM line items. Tracks the
+/// GoHub order through its async lifecycle (created -> polled -> fulfilled).
+/// idempotencyKey = Shopify order id, so webhook retries never double-order.
+model GohubOrder {
+  id               String    @id @default(cuid())
+  shop             String
+  idempotencyKey   String    @unique // Shopify order id
+  shopifyOrderId   String
+  shopifyOrderName String
+  customerEmail    String
+  currency         String
+  items            String    @default("[]") // JSON [{ code, quantity }] — lets the poller re-place a stranded order
+  gohubOrderCode   String? // from POST /orders, used to poll GET /orders/{code}
+  status           String    @default("PENDING") // PENDING | FULFILLED | FAILED | NO_BALANCE
+  attempts         Int       @default(0)
+  lastError        String?
+  emailSentAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status])
+}
+
+/// One row per eSIM profile returned by GoHub once an order is fulfilled.
 model ProvisionedEsim {
-  id                String    @id @default(cuid())
-  shop              String
-  idempotencyKey    String    @unique // `${orderId}:${lineItemId}:${index}`
-  shopifyOrderId    String
-  shopifyOrderName  String
-  shopifyLineItemId String
-  gohubPlanId       String
-  planName          String
-  iccid             String
-  lpa               String
-  status            String // "ASSIGNED"
-  customerEmail     String
-  emailSentAt       DateTime?
-  createdAt         DateTime  @default(now())
+  id                  String    @id @default(cuid())
+  shop                String
+  gohubOrderCode      String
+  iccid               String    @unique
+  lpa                 String
+  qrImageUrl          String?
+  planName            String
+  activationExpiresAt DateTime?
+  expiresAt           DateTime?
+  customerEmail       String
+  createdAt           DateTime  @default(now())
+
+  @@index([shop])
+  @@index([gohubOrderCode])
 }

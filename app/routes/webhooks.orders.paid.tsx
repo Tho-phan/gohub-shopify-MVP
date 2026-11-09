@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import { provisionOrder } from "../lib/provision.server";
+import { startProvision } from "../lib/provision.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, topic, payload } = await authenticate.webhook(request); // <- HMAC verified here
@@ -9,9 +9,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   );
 
   try {
-    await provisionOrder(shop, payload as never);
+    await startProvision(shop, payload as never);
   } catch (e) {
-    console.error("provisionOrder failed:", e);
+    console.error("startProvision failed:", e);
     // Return 500 so Shopify retries transient failures; our idempotency keeps retries safe.
     return new Response("provisioning error", { status: 500 });
   }
